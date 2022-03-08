@@ -161,3 +161,78 @@ impl Tweet {
         + STRING_LENGTH_PREFIX + MAX_CONTENT_LENGTH; // Content.
 }
 ```
+
+## Our first instruction
+
+### Defining the context
+
+- Programs in Solana are stateless -> requires providing all the necessary context
+- Context?:
+  - its public key should be provided when sending the instruction
+  - use its private key to sign the instruction
+
+```rs
+#[derive(Accounts)]
+pub struct SendTweet<'info> {
+    pub tweet: Account<'info, Tweet>,
+    pub author: Signer<'info>,
+    pub system_program: AccountInfo<'info>,
+}
+```
+
+- `tweet`: tweetAccount{author, timestamp, topic, content}
+- `author`: who is sending, signature to prove it
+- `system_program`: cuz of stateless, even system should be in context
+
+### Account constraints
+
+- help us with security access control and initialize
+- should provide space size
+- author should pay rent-exempt -> mut
+
+```rs
+#[derive(Accounts)]
+pub struct SendTweet<'info> {
+    #[account(init, payer = author, space = Tweet::LEN)]
+    pub tweet: Account<'info, Tweet>,
+    #[account(mut)]
+    pub author: Signer<'info>,
+    #[account(address = system_program::ID)]
+    pub system_program: AccountInfo<'info>,
+}
+```
+
+### Implementing the logic
+
+```rs
+pub fn send_tweet(ctx: Context<SendTweet>, topic: String, content: String) -> ProgramResult {
+    let tweet: &mut Account<Tweet> = &mut ctx.accounts.tweet;
+    let author: &Signer = &ctx.accounts.author;
+    let clock: Clock = Clock::get().unwrap();
+
+    tweet.author = *author.key;
+    tweet.timestamp = clock.unix_timestamp;
+    tweet.topic = topic;
+    tweet.content = content;
+
+    Ok(())
+}
+```
+
+- `topic`, `content`: Any argument which is not an account can be provided after `ctx`
+
+### Guarding against invalid data
+
+```rs
+if topic.chars().count() > 50 {
+    return Err(error!(ErrorCode::TopicTooLong));
+}
+
+if content.chars().count() > 280 {
+    return Err(error!(ErrorCode::ContentTooLong));
+}
+```
+
+### Instruction vs transaction
+
+- `a transaction`(`tx`) is composed of one or multiple `instructions`(`ix`)
