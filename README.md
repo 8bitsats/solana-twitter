@@ -35,7 +35,7 @@ anchor deploy
 
 ### Special commands for a cycle
 
-- `anchor localnet`
+- `anchor localnet`: keep local ledger
 
 ```
 solana-test-validator --reset
@@ -43,7 +43,9 @@ anchor build
 anchor deploy
 ```
 
-- `ahnchor test`
+- `anchor run test`: pre-defined script to test
+
+- `anchor test`: test and end ledger
 
 ```
 solana-test-validator --reset
@@ -655,3 +657,142 @@ import idl from '../../../target/idl/solana_twitter.json'
 ### Use the workspace
 
 - wallet.publicKey.toBase58()
+
+## Fetching tweets in the frontend
+
+### Fetching all tweets
+
+```ts
+// api/fetch-tweets.js
+import { useWorkspace } from "@/composables";
+
+export const fetchTweets = async () => {
+  const { program } = useWorkspace();
+  const tweets = await program.value.account.tweet.all();
+  return tweets;
+};
+```
+
+- But return type does not fit with privious mocked data
+
+### The Tweet model
+
+```
+mkdir src/models
+touch src/models/Tweet.js
+touch src/models/index.js
+```
+
+```ts
+import dayjs from "dayjs";
+
+export class Tweet {
+  constructor(publicKey, accountData) {
+    this.publicKey = publicKey;
+    this.author = accountData.author;
+    this.timestamp = accountData.timestamp.toString();
+    this.topic = accountData.topic;
+    this.content = accountData.content;
+  }
+
+  get key() {
+    return this.publicKey.toBase58();
+  }
+
+  get author_display() {
+    const author = this.author.toBase58();
+    return author.slice(0, 4) + ".." + author.slice(-4);
+  }
+
+  get created_at() {
+    return dayjs.unix(this.timestamp).format("lll");
+  }
+
+  get created_ago() {
+    return dayjs.unix(this.timestamp).fromNow();
+  }
+}
+```
+
+- args(publicKey, accountDate) -> assign it to each properties
+- `key`: unique id that represents each tweet
+- `author_display`: condensed version of pubKey to display author
+- `created_at`, `created_ago`: human readable timestamp
+
+```
+npm install dayjs
+```
+
+- localize date format
+
+```ts
+// main.js
+import dayjs from "dayjs";
+import localizedFormat from "dayjs/plugin/localizedFormat";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(localizedFormat);
+dayjs.extend(relativeTime);
+```
+
+- Returning Tweet models
+
+```ts
+// fetch-tweets.js
+return tweets.map(tweet => new Tweet(tweet.publicKey, tweet.account));
+```
+
+### Add links in the tweet card
+
+- author's address -> author's page
+- tweet's time -> show only that tweet
+- tweet's topic -> topic's page
+
+#### The author’s link
+
+- me => profile, other => userinfo page
+
+```ts
+// TweetCard.vue
+const authorRoute = computed(() => {
+  if (
+    wallet.value &&
+    wallet.value.publicKey.toBase58() === tweet.value.author.toBase58()
+  ) {
+    return { name: "Profile" };
+  } else {
+    return { name: "Users", params: { author: tweet.value.author.toBase58() } };
+  }
+});
+...
+<router-link :to="authorRoute" class="hover:underline">
+```
+
+#### The tweet’s link
+
+```ts
+// TweetCard.vue
+<router-link :to="{ name: 'Tweet', params: { tweet: tweet.publicKey.toBase58() } }" class="hover:underline">
+```
+
+#### The topic's link
+
+```ts
+<router-link v-if="tweet.topic" :to="{ name: 'Topics', params: { topic: tweet.topic } }" class="inline-block mt-2 text-pink-500 hover:underline">
+```
+
+### Supporting filters
+
+- Create custom `topicFilter`, `authorFilter` at `fetch-tweets.js`
+
+#### Fetching tweets by topic
+
+- Add `topicFilter` at `PageTopics.vue`
+
+#### Fetching tweets by author
+
+- Add `authorFilter` at `PageUsers.vue`, `PageProfile.vue`
+
+#### Fetching only one tweet
+
+- Getting a tweet uses `fetch(pulicKey)`
+- Create getTweet at `get-tweet.js`
