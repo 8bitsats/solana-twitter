@@ -371,3 +371,181 @@ const tweetAccounts = await program.account.tweet.all([
   },
 ]);
 ```
+
+## Scaffolding the frontend
+
+### Install Vue CLI
+
+```
+npm install -g @vue/cli@5.0.0-rc.1
+vue create app --force
+npm install @solana/web3.js @project-serum/anchor
+```
+
+- To be safe from confusing polyfill errors
+
+```ts
+// vue.config.js
+onst webpack = require('webpack')
+const { defineConfig } = require('@vue/cli-service')
+
+module.exports = defineConfig({
+    transpileDependencies: true,
+    configureWebpack: {
+        plugins: [
+            new webpack.ProvidePlugin({
+                Buffer: ['buffer', 'Buffer']
+            })
+        ],
+        resolve: {
+            fallback: {
+                crypto: false,
+                fs: false,
+                assert: false,
+                process: false,
+                util: false,
+                path: false,
+                stream: false,
+            }
+        }
+    }
+})
+```
+
+### Configure ESLint
+
+```
+"eslintConfig": {
+  "root": true,
+  "env": {
+    "node": true,
+    "vue/setup-compiler-macros": true
+  },
+  "extends": [
+    "plugin:vue/vue3-essential",
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "parser": "@babel/eslint-parser"
+  },
+  "rules": {
+    "vue/script-setup-uses-vars": "error"
+  }
+},
+```
+
+### Install TailwindCSS
+
+```
+npm install tailwindcss@latest postcss@latest autoprefixer@latest
+npx tailwindcss init -p
+```
+
+```ts
+// tailwind.config.js
+module.exports = {
+  purge: ["./public/index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
+...
+```
+
+```css
+/* touch src/main.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+```js
+// main.js
+import "./main.css";
+...
+
+```
+
+### Install Vue Router
+
+```
+npm install vue-router@4
+```
+
+```js
+touch src/routes.js
+
+export default [
+    {
+        name: 'Home',
+        path: '/',
+        component: require('@/components/PageHome').default,
+    },
+    {
+        name: 'Topics',
+        path: '/topics/:topic?',
+        component: require('@/components/PageTopics').default,
+    },
+    {
+        name: 'Users',
+        path: '/users/:author?',
+        component: require('@/components/PageUsers').default,
+    },
+    {
+        name: 'Profile',
+        path: '/profile',
+        component: require('@/components/PageProfile').default,
+    },
+    {
+        name: 'Tweet',
+        path: '/tweet/:tweet',
+        component: require('@/components/PageTweet').default,
+    },
+    {
+        name: 'NotFound',
+        path: '/:pathMatch(.*)*',
+        component: require('@/components/PageNotFound').default,
+    },
+]
+```
+
+```js
+// main.js
+// Routing.
+import { createRouter, createWebHashHistory } from "vue-router";
+import routes from "./routes";
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes,
+});
+
+// Create the app.
+import { createApp } from "vue";
+import App from "./App.vue";
+createApp(App).use(router).mount("#app");
+```
+
+### Components
+
+App.vue: This is the main component that loads when our application starts. It designs the overall layout of our app and delegates the rest to Vue Router by using the <router-view> component. Any page that matches the current URL will be rendered where <router-view> is.
+
+- PageHome.vue: The home page. It contains a form to send tweets and lists the latest tweets from everyone.
+- PageNotFound.vue: The 404 fallback page. It displays an error message and offers to go back to the home page.
+- PageProfile.vue: The profile page for the connected user/wallet. It displays the wallet’s public key before showing the tweet form and the list of tweets sent from that wallet.
+- PageTopics.vue: The topics page allows users to enter a topic and displays all tweets matching it. Once a topic is entered it also displays a form to send tweets with that topic pre-filled.
+- PageTweet.vue: The tweet page only shows one tweet. The tweet’s public key is provided in the URL allowing us to fetch the tweet account. This is useful for users to share tweets.
+- PageUsers.vue: Similarly to the topics page, the users page allows searching for other users by entering their public key. When a valid public key is entered, all tweets from that user will be fetched and displayed on this page.
+- TheSidebar.vue: This component is used in the main App.vue component and designs the sidebar on the left of the app. It uses the <router-link> component to easily generate Vue Router URLs. It also contains a button for users to connect their wallets but for now, that button doesn’t do anything.
+- TweetCard.vue: This component is responsible for the design of one tweet. It is used everywhere we need to display tweets.
+- TweetForm.vue: This component designs the form allowing users to send tweets. It contains a field for the content, a field for the topic and a little character count-down.
+- TweetList.vue: This component uses the TweetCard.vue component to display not just one but multiple tweets.
+- TweetSearch.vue: This component offers a reusable form to search for criteria. It is used on the topics page and the users page as we need to search for something on both of these pages.
+
+### API
+
+- fetch-tweets.js: Provides a function that returns all tweets from our program. In a future episode, we will transform that function slightly so it can filter through topics and users.
+- get-tweet.js: Provides a function that returns a tweet account from a given public key.
+- send-tweet.js: Provides a function that sends a SendTweet instruction to our program with all the required information.
+
+### Composables (hooks for VueJS)
+
+- useAutoresizeTextarea.js: This composable is used in the TweetForm.vue component and makes the “content” field automatically resize itself based on its content. That way the field contains only one line of text to start with but extends as the user types.
+- useCountCharacterLimit.js: Also used by the TweetForm.vue component, this composable returns a reactive character count-down based on a given text and limit.
+- useFromRoute.js: This composable is used by many components. It’s a little refactoring that helps deal with Vue Router hooks. Normally, we’d need to add some code for when we enter a router and some other code when the route updates but the components stay the same — e.g. the topic changes in the topics page. That function enables us to write some logic once that will be fired on both events.
+- useSlug.js: This composable is used to transform any given text into a slug. For instance Solana is AWESOME will become solana-is-awesome. This is used anywhere we need to make sure the topic is provided as a slug. That way, we’ve got less risk of users tweeting on the same topic not finding each other’s tweets due to case sensitivity.
