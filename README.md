@@ -549,3 +549,109 @@ App.vue: This is the main component that loads when our application starts. It d
 - useCountCharacterLimit.js: Also used by the TweetForm.vue component, this composable returns a reactive character count-down based on a given text and limit.
 - useFromRoute.js: This composable is used by many components. It’s a little refactoring that helps deal with Vue Router hooks. Normally, we’d need to add some code for when we enter a router and some other code when the route updates but the components stay the same — e.g. the topic changes in the topics page. That function enables us to write some logic once that will be fired on both events.
 - useSlug.js: This composable is used to transform any given text into a slug. For instance Solana is AWESOME will become solana-is-awesome. This is used anywhere we need to make sure the topic is provided as a slug. That way, we’ve got less risk of users tweeting on the same topic not finding each other’s tweets due to case sensitivity.
+
+## Integrating with Solana wallets
+
+### Install Solana wallet libraries
+
+```
+npm install solana-wallets-vue @solana/wallet-adapter-wallets
+```
+
+### Initialize the wallet store
+
+- Phantom and Solflare to wallets
+- initWallet: init global store, autoConnect whenever user refreshes page
+
+### Use wallet UI components
+
+```vue
+// TheSidebar.vue
+<wallet-multi-button></wallet-multi-button>
+```
+
+```ts
+// main.js
+import "solana-wallets-vue/styles.css";
+import "./main.css";
+// ...
+```
+
+### Update the design of the wallet button
+
+- main.css
+
+### Connect your wallet
+
+- [install phantom](https://phantom.app/)
+
+### Access wallet data
+
+```ts
+import { useWallet } from "solana-wallets-vue";
+const data = useWallet();
+```
+
+- `wallet`: connected ? object with pubKey : null
+- `ready`, `connected`, `connecting`, `disconnecting`: state boolean
+- `select`, `connect`, `disconnect`: wallet UI component will do these
+- `sendTransaction`, `signTransaction`, `signAllTransactions` and `signMessage`: sign messages and/or transactions
+
+### Anchor wallet
+
+- useWallet is not compatiable with anchor -> useAnchorWallet();
+
+```ts
+import { useAnchorWallet } from "solana-wallets-vue";
+const wallet = useAnchorWallet();
+```
+
+### Reactive variables in VueJS
+
+- `const state = ref(state)`: like useState(state)
+- `state.value`: get state
+
+### Use wallet data in components
+
+- TweetForm should appear only if connected
+
+```diff
+# TweetForm.vue
++ import { useWallet } from 'solana-wallets-vue'
+...
+  // Permissions.
+- const connected = ref(true) // TODO: Check connected wallet.
++ const { connected } = useWallet()
+```
+
+- Profile should appear only if connected
+
+```ts
+// TheSidebar.vue
+import { WalletMultiButton, useWallet } from "solana-wallets-vue";
+const { connected } = useWallet();
+```
+
+### Provide a workspace
+
+```
+touch src/composables/useWorkspace.js
+```
+
+- put static cluster address `http://127.0.0.1:8899`
+- Connection + Wallet = Provider
+- wallet state can be changed -> `wallet.value`
+- access IDL file -> static dir for now
+
+```
+import idl from '../../../target/idl/solana_twitter.json'
+```
+
+- IDL + Provider = Program
+- provider is also reactive state -> provider.value
+- get programID from idl (should be after `anchor deploy`)
+- `initWorkspace` at `App.vue`
+
+### Use the workspace
+
+- wallet.publicKey.toBase58()
