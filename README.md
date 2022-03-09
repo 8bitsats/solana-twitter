@@ -294,3 +294,80 @@ it("can send a new tweet", async () => {
 
 - topic with more than 50 characters
 - topic with more than 280 characters
+
+## Fetching tweets from the program
+
+### Fetching all tweets
+
+```rs
+const tweetAccounts = await program.account.tweet.all();
+assert.equal(tweetAccounts.length, 3);
+```
+
+### Filtering tweets by author
+
+- The dataSize filter
+
+```
+{
+    dataSize: 2000,
+}
+```
+
+- The memcmp filter
+
+```ts
+{
+    memcmp: {
+        offset: 42, // Starting from the 42nd byte for example.
+        bytes: 'B1AfN7AgpMyctfFbjmvRAvE1yziZFDb9XCwydBjJwtRN', // My base-58 encoded public key.
+    }
+}
+```
+
+- Use the memcmp filter on the author's public key
+  - right after 8 bytes of discriminator
+
+```ts
+const tweetAccounts = await program.account.tweet.all([
+  {
+    memcmp: {
+      offset: 8, // Discriminator.
+      bytes: authorPublicKey.toBase58(),
+    },
+  },
+]);
+```
+
+- fetch(pubKey) vs all()
+
+```ts
+// fetch(pubKey) -> Tweet account with all of its data parsed
+program.account.tweet.fetch(tweet.publicKey);
+// all() -> each Tweet accounts with pubkey
+await program.account.tweet.all().every(tweetAccount => {
+    return (
+      tweetAccount.account.author.toBase58() === authorPublicKey.toBase58()
+    );
+}
+```
+
+### Filtering tweets by topic
+
+- Discriminator + Author public key + Timestamp + Topic string prefix
+- encode with `bs58`
+
+```ts
+const tweetAccounts = await program.account.tweet.all([
+  {
+    memcmp: {
+      offset:
+        8 + // Discriminator.
+        32 + // Author public key.
+        8 + // Timestamp.
+        4, // Topic string prefix.
+      bytes: bs58.encode(Buffer.from("veganism")),
+    },
+  },
+]);
+```
