@@ -236,3 +236,61 @@ if content.chars().count() > 280 {
 ### Instruction vs transaction
 
 - `a transaction`(`tx`) is composed of one or multiple `instructions`(`ix`)
+
+## Testing our instruction
+
+### Overview
+
+- JSON RPC API
+- Program
+  - Provider: `@project-serum/anchor`
+    - Connection encapsulated by Cluster `@solana/web3.js`
+    - Wallet: accesses to the key pair
+  - IDL(Interfaace Description Language): structured description of program including pubKey
+
+### A client just for tests
+
+- provider configurations
+
+```rs
+// Anchor.toml
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+```
+
+### Sending a tweet
+
+```ts
+// tests/solana-twitter.ts
+it("can send a new tweet", async () => {
+  // Call the "SendTweet" instruction.
+  const tweet = anchor.web3.Keypair.generate();
+  await program.rpc.sendTweet("veganism", "Hummus, am I right?", {
+    accounts: {
+      tweet: tweet.publicKey,
+      author: program.provider.wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    },
+    signers: [tweet],
+  });
+
+  // Fetch the account details of the created tweet.
+  const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
+  console.log(tweetAccount);
+});
+```
+
+### Sending a tweet without a topic
+
+### Sending a tweet from a different author
+
+- `lamport`: the smallest decimal of Solana's native token
+- 1 SOL = 1'000'000'000 lamports
+- should airdrop money to otherUser
+- every time a new local ledger is created, it automatically airdrops 500 million SOL to your local wallet
+
+### Testing our custom guards
+
+- topic with more than 50 characters
+- topic with more than 280 characters
