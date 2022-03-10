@@ -853,3 +853,130 @@ solana airdrop 1000 <CopiedBrowserAddress>
 ```
 
 - Then, try to tweet
+
+## Deploying to devnet
+
+### Changing the cluster
+
+1.  local to devnet
+
+- no need to run local ledger from now with `solana-test-validator` or `anchor localnet`
+
+```sh
+solana config set --url devnet
+```
+
+2. `Anchor.toml`
+
+- programId was from local cluster
+- programId is public
+- keypair is at target/deploy/<projectName>-keypair.json
+- should use different programId at least for mainet
+
+```rs
+[programs.localnet]
+solana_twitter = "..."
+
+[programs.devnet]
+solana_twitter = "..."
+
+[programs.mainnet]
+solana_twitter = "..."
+
+// ...
+
+[provider]
+cluster = "devnet"
+...
+```
+
+### Airdropping on devnet
+
+- address is located at `~/.config/solana/id.json`
+
+```sh
+solana airdrop 2
+solana airdrop 2
+solana airdrop 2
+```
+
+### Deploying the program
+
+```sh
+anchor build
+anchor deploy
+```
+
+```ts
+//
+const connection = new Connection("https://api.devnet.solana.com", commitment);
+```
+
+### The cost of deploying
+
+- Solana defaults to allocating twice the amount of space needed to store the code
+- If necessary, we may change this by explicitly telling [Solana how much space we want to allocate for our program](https://docs.solana.com/cli/deploy-a-program#redeploy-a-program)
+- Therefore, deploying for the first time on a cluster is an expensive transaction because of the initial rent-exempt money but, afterwards, deploying again should cost virtually nothing
+
+### Copying the IDL file
+
+- Should copy IDL file from anchor target to vue app
+
+```
+// Anchor.toml
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+copy-idl = "mkdir -p app/src/idl && cp target/idl/solana_twitter.json app/src/idl/solana_twitter.json"
+```
+
+```ts
+// useWorkspace.js
+import idl from "@/idl/solana_twitter.json";
+```
+
+#### New feature
+
+- from Anchor v0.19.0 that allows us to specify a custom directory that the IDL file should be copied to every time we run anchor build
+
+```
+// Anchor.toml
+[workspace]
+types = "app/src/idl/"
+```
+
+### Multiple environments in the frontend
+
+- set cluser dynamically => VueJS `mode` feature
+
+```
+app/touch .env
+VUE_APP_CLUSTER_URL="http://127.0.0.1:8899"
+
+app/touch .env.devnet
+VUE_APP_CLUSTER_URL="https://api.devnet.solana.com"
+
+app/touch .env.mainnet
+VUE_APP_CLUSTER_URL="https://api.mainnet-beta.solana.com"
+```
+
+```ts
+// useWorkspace.js
+const clusterUrl = process.env.VUE_APP_CLUSTER_URL;
+```
+
+```ts
+// app/package.json
+"scripts": {
+  "serve": "vue-cli-service serve",
+  "serve:devnet": "vue-cli-service serve --mode devnet",
+  "serve:mainnet": "vue-cli-service serve --mode mainnet",
+  "build": "vue-cli-service build",
+  "build:devnet": "vue-cli-service build --mode devnet",
+  "build:mainnet": "vue-cli-service build --mode mainnet",
+  "lint": "vue-cli-service lint"
+},
+```
+
+### Deploying the frontend
+
+- Add static files at app/public
