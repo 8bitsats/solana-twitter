@@ -796,3 +796,60 @@ const authorRoute = computed(() => {
 
 - Getting a tweet uses `fetch(pulicKey)`
 - Create getTweet at `get-tweet.js`
+
+## Sending new tweets from the frontend
+
+### Sending tweets
+
+#### `send-tweet.js`
+
+- args(topic, content), get wallet, program from `useWorkspace()`
+- Generate new Keypair with web3
+- sendTweet to legder
+- fetch a tweet not to refetch-all
+- return a `Tweet` inst
+
+### Using the sendTweet API
+
+- `TweetForm.vue`
+
+### The right commitment
+
+```ts
+const provider = computed(() => new Provider(connection, wallet.value, `${Missing 3rd parameter}`))
+```
+
+- configuration object to define commitment of transactions
+- `preflightCommitment`: simulating a transaction
+  - To show expected money beforing approval
+- `commitment`: sending the transaction for real.
+  - how finalized a block is at the point of sending the transaction
+  - before `confirmd`, the block will be skipped by cluster
+
+#### 3 commitment levels
+
+- lower level commit -> to report progress
+- higher level commit -> to ensure the state will not be rolled back
+
+1. `processed`: tx has been processed and added to a block
+
+- `processed` is enough for twitter -> `useWorkspace.js`
+
+2. `confirmed`: tx block is valid, will not roll back but not guaranteed yet
+3. `finalized`: make sure block will not be skipped, tx will not be rolled back
+
+- good for (non-simulated) financial transactions with critical consequences
+
+### Airdropping some SOL
+
+```
+Uncaught (in promise) Error: failed to send transaction: Transaction simulation failed: Attempt to debit an account but found no record of a prior credit.
+```
+
+- Need to airdrop money from local ledger to wallet in our browser
+
+```
+solana airdrop 1000 <CopiedBrowserAddress>
+```
+
+- Then, try to tweet
