@@ -980,3 +980,9 @@ const clusterUrl = process.env.VUE_APP_CLUSTER_URL;
 ### Deploying the frontend
 
 - Add static files at app/public
+
+#### Netlify setting
+
+- Base dirctory: `app`
+- Build command: `npm run build:devnet`
+- Publish directory: `app/dist`
