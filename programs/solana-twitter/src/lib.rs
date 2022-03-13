@@ -28,6 +28,23 @@ pub mod solana_twitter {
 
         Ok(())
     }
+
+    pub fn update_tweet(ctx: Context<UpdateTweet>, topic: String, content: String) -> Result<()> {
+        let tweet: &mut Account<Tweet> = &mut ctx.accounts.tweet;
+
+        if topic.chars().count() > 50 {
+            return Err(ErrorCode::TopicTooLong.into());
+        }
+
+        if content.chars().count() > 280 {
+            return Err(ErrorCode::ContentTooLong.into());
+        }
+
+        tweet.topic = topic;
+        tweet.content = content;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -39,6 +56,13 @@ pub struct SendTweet<'info> {
     #[account(address = system_program::ID)]
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateTweet<'info> {
+    #[account(mut, has_one = author)]
+    pub tweet: Account<'info, Tweet>,
+    pub author: Signer<'info>,
 }
 
 #[account]

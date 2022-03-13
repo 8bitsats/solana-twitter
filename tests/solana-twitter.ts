@@ -16,6 +16,20 @@ describe("solana-twitter", () => {
   //   console.log("Your transaction signature", tx);
   // });
 
+  const sendTweet = async (author, topic, content) => {
+    const tweet = anchor.web3.Keypair.generate();
+    await program.rpc.sendTweet(topic, content, {
+      accounts: {
+        tweet: tweet.publicKey,
+        author,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      },
+      signers: [tweet],
+    });
+
+    return tweet;
+  };
+
   it("can send a new tweet", async () => {
     // Call the "SendTweet" instruction.
     const tweet = anchor.web3.Keypair.generate();
@@ -196,5 +210,55 @@ describe("solana-twitter", () => {
         return tweetAccount.account.topic === "veganism";
       })
     );
+  });
+
+  it("can update a tweet", async () => {
+    // 1. Send a tweet and fetch its account.
+    const author = program.provider.wallet.publicKey;
+    const tweet = await sendTweet(author, "web2", "Hello World!");
+    const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
+
+    // 2. Ensure it has the right data.
+    assert.equal(tweetAccount.topic, "web2");
+    assert.equal(tweetAccount.content, "Hello World!");
+
+    // 3. Update the Tweet.
+    await program.rpc.updateTweet("solana", "gm everyone!", {
+      accounts: {
+        tweet: tweet.publicKey,
+        author,
+      },
+    });
+
+    // 4. Ensure the updated tweet has the updated data.
+    const updatedTweetAccount = await program.account.tweet.fetch(
+      tweet.publicKey
+    );
+    assert.equal(updatedTweetAccount.topic, "solana");
+    assert.equal(updatedTweetAccount.content, "gm everyone!");
+  });
+
+  it("cannot update someone else's tweet", async () => {
+    // 1. Send a tweet.
+    const author = program.provider.wallet.publicKey;
+    const tweet = await sendTweet(author, "solana", "Solana is awesome!");
+
+    try {
+      // 2. Try updating the Tweet.
+      await program.rpc.updateTweet("eth", "Ethereum is awesome!", {
+        accounts: {
+          tweet: tweet.publicKey,
+          author: anchor.web3.Keypair.generate().publicKey,
+        },
+      });
+
+      // 3. Ensure updating the tweet did not succeed.
+      assert.fail("We were able to update someone else's tweet.");
+    } catch (error) {
+      // 4. Ensure the tweet account kept its initial data.
+      const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
+      assert.equal(tweetAccount.topic, "solana");
+      assert.equal(tweetAccount.content, "Solana is awesome!");
+    }
   });
 });

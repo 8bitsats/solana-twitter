@@ -1035,3 +1035,67 @@ anchor deploy
 # Push your code to the main branch to auto-deploy on Netlify.
 git push
 ```
+
+## Updating tweets
+
+### Back to localnet
+
+```rs
+[provider]
+cluster = "localnet"
+```
+
+```sh
+solana config set --url localhost
+```
+
+### The UpdateTweet instruction
+
+- Define context for new instruction
+
+```rs
+// lib.rs
+#[derive(Accounts)]
+pub struct UpdateTweet<'info> {
+    #[account(mut, has_one = author)] // constraint
+    pub tweet: Account<'info, Tweet>,
+    pub author: Signer<'info>,
+}
+```
+
+- Implement new instruction
+
+### Testing our new instruction
+
+- Add sendTweet helper function
+- Add test `can update a tweet`
+- Add test `cannot update someone else\'s tweet`
+  - try to update that tweet by providing a different address as the author account.
+
+### Copying the new IDL to our frontend
+
+```
+anchor run copy-idl
+```
+
+### Adding a new API file
+
+- Create updateTweet
+
+```
+touch app/src/api/update-tweet.js
+```
+
+- export update-tweet at `app/src/api/index.js`
+
+### Enabling users to update tweets in the frontend
+
+- Create `TweetFormUpdate.vue` component
+
+```
+touch app/src/components/TweetFormUpdate.vue
+```
+
+- Add button, onClick event at `TweetCard.vue`
+  - isEditing state
+  - @click="isEditing"
