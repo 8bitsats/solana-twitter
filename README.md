@@ -1,5 +1,8 @@
 # solana-twitter
 
+## Preview
+
+https://solana-twit.netlify.app/#/
 ![preview](app/public/preview.jpg)
 
 ## Solana and Anchor commands
