@@ -1,5 +1,7 @@
 # solana-twitter
 
+![preview](app/public/preview.jpg)
+
 ## Solana and Anchor commands
 
 ### Show solnana key pair
