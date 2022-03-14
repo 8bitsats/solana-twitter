@@ -1099,3 +1099,118 @@ touch app/src/components/TweetFormUpdate.vue
 - Add button, onClick event at `TweetCard.vue`
   - isEditing state
   - @click="isEditing"
+
+## Deleting tweets
+
+### Deleting accounts in Solana
+
+- Not enough money -> account would be purged
+- Someone could append another instruction to the transaction transafering enough lamports to the accounts to keep it alive
+  - It is recommended to always empty the data of account before deleting it
+
+### Deleting accounts with Anchor
+
+```rs
+// src/lib.rs
+#[derive(Accounts)]
+pub struct DeleteTweet<'info> {
+    #[account(mut, has_one = author, close = author)]
+    pub tweet: Account<'info, Tweet>,
+    pub author: Signer<'info>,
+}
+
+pub fn delete_tweet(_ctx: Context<DeleteTweet>) -> ProgramResult {
+    Ok(())
+}
+```
+
+- `close`: will close the account and transfer its lamports to the provided account (author)
+- `has_one`: only author can delete it
+
+### Testing our delete instruction
+
+- can delete a tweet
+- cannot delete someone else\'s tweet
+
+```sh
+anchor test
+anchor run copy-idl
+```
+
+### Adding a new API file
+
+- Create deleteTweet
+
+```
+touch app/src/api/delete-tweet.js
+```
+
+- Add to `app/api/index.js`
+
+### Adding a delete button on the tweet card
+
+- delete button at `TweetCard.vue`
+- onDelete => deleteTweet and emit
+
+```ts
+const emit = defineEmits(["delete"]);
+
+const onDelete = async () => {
+  await deleteTweet(tweet.value);
+  emit("delete", tweet.value);
+};
+```
+
+- emit will delete the node
+
+### Hiding tweets after deletion
+
+- Listen delete event from TweetCard at `TweetList.vue`
+
+```ts
+const emit = defineEmits(['update:tweets'])
+
+const onDelete = deletedTweet => {
+    const filteredTweets = tweets.value.filter(tweet => tweet.publicKey.toBase58() !== deletedTweet.publicKey.toBase58())
+    emit('update:tweets', filteredTweets)
+}
+...
+<tweet-card v-for="tweet in orderedTweets" :key="tweet.key" :tweet="tweet" @delete="onDelete"></tweet-card>
+```
+
+#### update card props
+
+##### update way
+
+```html
+<tweet-list
+  :tweets="tweets"
+  @update:tweets="newTweets => tweets = newTweets"
+></tweet-list>
+```
+
+##### v-model: syntax sugar for update
+
+```html
+<tweet-list v-model:tweets="tweets" :loading="loading"></tweet-list>
+```
+
+###### Adjust to..
+
+- PageHome.vue
+- PageProfile.vue
+- PageTopics.vue
+- PageUsers.vue
+
+### Redirecting home when deleting in the tweet page
+
+- a single tweet page should redirect to home after deleting
+
+```html
+<!-- PageTweet.vue -->
+<tweet-card
+  v-else
+  :tweet="tweet"
+  @delete="$router.push({ name: 'Home' })"
+></tweet-card>
+```
