@@ -2,3 +2,10 @@
 members = [
     "programs/*"
 ]
+
+
+[profile.release]
+overflow-checks = true
+
+[features]
+idl-build = ["anchor-lang/idl-build"]
